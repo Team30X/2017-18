@@ -94,7 +94,7 @@ void check_claw() {
 
 }
 
-const float lift_speed = 25;
+const float lift_speed = 15;
 
 //Checks lift buttons and sets to appropriate value
 void check_lift() {
@@ -124,7 +124,8 @@ task lift_PID() {
 	while (1) {
 		e = lift_pos - SensorValue[lift];
 
-		set_lift(kp*e + ki*sum + kd*(e-last_e));
+		float t = kp*e + ki*sum + kd*(e-last_e);
+		set_lift(t>10?t:0);
 
 		sum = sum/3 + e;
 		last_e = e;
