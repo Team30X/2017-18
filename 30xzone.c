@@ -1,4 +1,6 @@
 #pragma config(I2C_Usage, I2C1, i2cSensors)
+#pragma config(Sensor, dgtl1,  lift_limit,     sensorTouch)
+#pragma config(Sensor, dgtl2,  goal_limit,     sensorTouch)
 #pragma config(Sensor, I2C_1,  lift,           sensorQuadEncoderOnI2CPort,    , AutoAssign)
 #pragma config(Motor,  port2,           left1,         tmotorServoContinuousRotation, openLoop, reversed)
 #pragma config(Motor,  port3,           left2,         tmotorServoContinuousRotation, openLoop, reversed)
@@ -22,7 +24,7 @@ float lift_pos;
 
 void pre_auton() {
 }
-
+//goat meat
 //Sets all motors to given value
 void set_motors(int value) {
 	motor[left1]=value;
@@ -84,17 +86,14 @@ bool claw_pressed = false;
 void check_claw() {
 	if (vexRT[Btn5U]==1) {
 		move_claw(1);
-		claw_pressed = false;
 	} else if (vexRT[Btn5D]==1) {
 		move_claw(-1);
-		claw_pressed = true;
 	} else {
-		if (!claw_pressed) move_claw(0);
+		move_claw(0);
 	}
-
 }
 
-const float lift_speed = 15;
+const float lift_speed = 25;
 
 //Checks lift buttons and sets to appropriate value
 void check_lift() {
@@ -104,20 +103,18 @@ void check_lift() {
 
 void check_goal() {
 	if (vexRT[Btn8U]==1) set_goal(127);
-	else if (vexRT[Btn8D]==1) set_goal(-127);
+	else if (vexRT[Btn8D]==1 && !SensorValue[goal_limit]) set_goal(-127);
 	else set_goal(0);
 }
 
-float kp = 0.05;
-float ki = 0.3;
+float kp = 0.1;
+float ki = 0.2;
 float kd = 0.2;
 
 int sum;
 int last_e;
 int e;
 task lift_PID() {
-	SensorValue[lift] = 0;
-	lift_pos = 0;
 	sum = 0;
 	last_e = 0;
 
@@ -125,7 +122,7 @@ task lift_PID() {
 		e = lift_pos - SensorValue[lift];
 
 		float t = kp*e + ki*sum + kd*(e-last_e);
-		set_lift(t>10?t:0);
+		set_lift(t);
 
 		sum = sum/3 + e;
 		last_e = e;
@@ -144,8 +141,13 @@ int last7u = 0;
 
 //main function
 task usercontrol () {
-	set_motors(0);
-
+	//calibrate lift
+	set_lift(-127);
+	while (!SensorValue[lift_limit]) {}
+	Sleep(200);
+	set_lift(0);
+	SensorValue[lift] = 0;
+	lift_pos = 0;
 	StartTask(lift_PID);
 
 	//main loop
@@ -153,7 +155,7 @@ task usercontrol () {
 		check_claw();
 		check_goal();
 		if (vexRT[Btn7U] != last7u && last7u) {
-			lift_pos = 930;
+			lift_pos = 2000;
 		}
 		last7u = vexRT[Btn7U];
 		//if full power buttons pressed, skip rest of the steps
